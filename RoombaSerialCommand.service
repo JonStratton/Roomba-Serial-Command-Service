@@ -1,0 +1,13 @@
+[Unit]
+Description=Roomba Serial Command Flask service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root
+ExecStart=/home/jgstratton/work/Roomba-Serial-Command-Service/RoombaSerialCommandService.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

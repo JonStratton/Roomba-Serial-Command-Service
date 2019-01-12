@@ -1,0 +1,4 @@
+socket
+serial
+zeroconf
+flask

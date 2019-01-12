@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 __author__ = 'Jon Stratton'
-import sys, socket, serial
+import socket, serial
 from zeroconf import ServiceInfo, Zeroconf
+from flask import Flask  
+
+service_name = 'Roomba Serial Command'
 
 # Roomba device settings
 serial_dev = '/dev/ttyUSB0'
@@ -10,19 +13,21 @@ serial_dev = '/dev/ttyUSB0'
 roomba_commands = {
    'clean': [128, 131, 135],
    'spot' : [128, 131, 134],
-#   'dock' : [128, 131, 143],
+   'dock' : [128, 131, 143],
    'off'  : [128, 131, 133],
 }
 
-# Generic service settings
-service_port = 10000
-service_addr = ''
+# Hardcode as needed
+service_port = 20807
+fqdn = socket.gethostname()
+service_addr = socket.gethostbyname(fqdn)
+service_host = fqdn.split('.')[0]
 
 # Zeroconf Service settings
-service_zc_desc = {'service': 'Roomba Serial Command Service', 'version': '0.1'}
-service_zc_info = ServiceInfo("_custom._tcp.local.",
-                   'Roomba Serial Command Service._custom._tcp.local.',
-                   socket.inet_aton('127.0.0.1'), service_port, 0, 0, service_zc_desc)
+service_zc_desc = {'service': service_name, 'version': '0.1'}
+service_zc_info = ServiceInfo('_http._tcp.local.',
+                   service_host + ' ' + service_name + '._http._tcp.local.',
+                   socket.inet_aton(service_addr), service_port, 0, 0, service_zc_desc)
 zeroconf = Zeroconf()
 
 def roomba_do( command_list ):
@@ -37,50 +42,24 @@ def roomba_do( command_list ):
       pass
    return success
 
-# https://pymotw.com/2/socket/tcp.html
-def main():
-   # Create a TCP/IP socket
-   print('starting up on %s port %s' % (service_addr, service_port) )
-   sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-   sock.bind( ( service_addr, service_port ) )
+app = Flask(__name__) 
 
-   # Listen for incoming connections
-   sock.listen(1)
+@app.route("/do/<string:command>/")
+def do(command):
+    ret_str = 'eh?'
+    if roomba_commands.get( command, [] ):
+       if roomba_do( roomba_commands.get( command, [] ) ):
+          ret_str = 'okay'
+       else:
+          ret_str = 'whoops'
+    return ret_str
 
-   # Register service with zeroconf
-   zeroconf.register_service(service_zc_info)
+@app.route('/')
+def home():  
+    return "Hello"
 
-   while True:
-      print('waiting for a connection')
-      connection, client_address = sock.accept()
+if __name__ == "__main__": 
+    # Reg service
+    zeroconf.register_service(service_zc_info)
 
-      try:
-         print('connection from %s %s' % client_address)
-
-         # Receive the data in small chunks and retransmit it
-         while True:
-            data = connection.recv(16)
-            print('received "%s"' % data)
-            if data:
-               # Check commands to chars
-               if roomba_commands.get( data, '' ):
-                  # attempt to exec command
-                  if roomba_do( roomba_commands.get( data, [] ) ):
-                     connection.sendall('okay')
-                  else: 
-                     connection.sendall('whoops')
-               else:
-                  connection.sendall('eh?')
-            else:
-               print( 'no more data from %s %s' % client_address)
-               break
-            
-      finally:
-         # Unregister service with zeroconf
-         zeroconf.unregister_service(service_zc_info)
-         zeroconf.close()
-
-         # Clean up the connection
-         connection.close()
-
-main()
+    app.run(host='0.0.0.0', port=service_port, debug=False)
