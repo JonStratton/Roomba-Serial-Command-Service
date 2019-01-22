@@ -6,7 +6,7 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=/root
-ExecStart=/home/jgstratton/work/Roomba-Serial-Command-Service/RoombaSerialCommandService.py
+ExecStart=/root/Roomba-Serial-Command-Service/RoombaSerialCommandService.py
 Restart=on-failure
 
 [Install]

@@ -37,6 +37,7 @@ def signal_handler( sig, frame ):
    zeroconf.close()
    sys.exit(0)
 signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
 
 # Just write some digits to the serial port
 def roomba_do( command_list ):
